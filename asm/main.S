@@ -1,7 +1,10 @@
 ; Nick Piscitello
-; Dec 08, 2016
+; January 2017
 ; Atmel ATMEGA328P-PU
 ; avr-gcc 4.3.3 (WinAVR 20100110)
+
+; I apologize for the stupidly verbose comments; this is my first foray into assembler and I intend
+; on using this file as a reference for future projects
 
 ; the interrupt table is handled automatically by the compiler using the macros defined in 
 ; 'avr/ioXXX.h' as the subroutine labels AS LONG AS those labels are declared '.global'.
@@ -21,8 +24,6 @@
 #define DIR r20
 #define ASC 0x01
 #define DSC 0x00
-; r26/r27: low/high byte for writing to memory
-; (already defined as XL and XH)
 
 ;=== UTILITY MACROS ===;
 #define low(x) ((x) & 0xFF)
@@ -46,10 +47,9 @@ main:
   ldi DIR,ASC
 
   clr XH          ; clear X high byte (we don't need any 2 byte memory addresses)
+  sei             ; globally enable interrupts
 
-  ; set up stack and interrupts
-  sei                   ; globally enable interrupts
-
+  ; set up INT0 interrupt
   ;ldi TEMP,0x00 | _BV(ISC01) | _BV(ISC00)  ; set up interrupt situations (rising edge)
   ldi TEMP,0x00 | _BV(ISC01) ; set up interrupt situations (falling edge)
   ldi XL,EICRA          ; load the addr to the external interrupt control reg
@@ -57,6 +57,7 @@ main:
 
   sbi _SFR_IO_ADDR(EIMSK),INT0  ; enable INT0...
 
+  ; set up stack (required for returning from interrupts)
   ldi TEMP,low(RAMEND)  ; set stack pointer to the end of ram
   ldi XL,SPL            ; load in address to low half of stack pointer
   st X,TEMP             ; set stack pointer to the end of ram
@@ -102,7 +103,6 @@ main:
   st  X,TEMP      ; set the memory at X to TEMP
 
   out _SFR_IO_ADDR(PORTB),LOC   ; start at minimum LED
-  ;rjmp ascend    ; jump into ascending LED chase
   rjmp loop       ; jump into infinite loop
 
 ; infinite loop. I guess this could be a sleep maybe?
@@ -110,30 +110,25 @@ loop:
   rjmp loop
 
 ; run when an interrupt is triggered on D2 (PD2, pin 4)
+; eventually, this interrupt will be triggered by a timer instead of a pin
 .global INT0_vect
 INT0_vect:
-  cpi DIR,ASC
-  breq ascend
-  rjmp descend
+  cpi DIR,ASC     ; compare the direction reg with the ascend direction constant...
+  breq ascend     ; ...and skip to the ascend code if they're equal...
+  rjmp descend    ; ...or to the descend code if they're not.
 
 ascend:
   lsl LOC         ; increment LED location (originally used rol, but it screwed up the compare
   out _SFR_IO_ADDR(PORTB),LOC   ; write LED location out
-  ;cp LOC,MAX      ; compare the current location with the max location...
-  ;breq descend    ; ...and jump to the descend function if they're the same...
-  ;rjmp ascend     ; ...or just go back to the beginning of the ascend code if not
-  cpse LOC,MAX
-  reti
-  ldi DIR,DSC
-  reti
+  cpse LOC,MAX    ; compare the location to the max location...
+  reti            ; ...and skip this instruction if they're the same.
+  ldi DIR,DSC     ; reverse direction
+  reti            ; return from ISR
 
 descend:
   lsr LOC         ; decrement LED location (originally used ror, but it screwed up the compare)
   out _SFR_IO_ADDR(PORTB),LOC   ; write LED location out
-  ;cp LOC,MIN      ; compare the current location with the min location...
-  ;breq ascend     ; ...and jump to the ascend function if they're the same...
-  ;rjmp descend    ; ...or just go back to the beginning of the descend code if not
-  cpse LOC,MIN
-  reti
-  ldi DIR,ASC
-  reti
+  cpse LOC,MIN    ; compare the current location with the min location...
+  reti            ; ...and skip this instruction if they're the same.
+  ldi DIR,ASC     ; reverse direction
+  reti            ; return from ISR
