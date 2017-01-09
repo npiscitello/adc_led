@@ -64,11 +64,16 @@ main:
   st X,TEMP             ; set stack pointer to the end of ram
 
   ; set up INT0 interrupt
-  ;ldi TEMP,0x00 | _BV(ISC01) | _BV(ISC00)  ; set up interrupt situations (rising edge)
-  ;ldi TEMP,0x00 | _BV(ISC01) ; set up interrupt situations (falling edge)
+  ldi TEMP,0x00 | _BV(ISC01) ; set up interrupt situations (falling edge)
+  ldi XL,EICRA    ; load the addr to the external interrupt control reg
+  st X,TEMP       ; set the external interrupt control reg to the value stored in TEMP
+  sbi _SFR_IO_ADDR(EIMSK),INT0  ; enable INT0...
+
+  ; set up INT1 interrupt
+  ;ldi TEMP,0x00 | _BV(ISC11) ; set up interrupt situations (falling edge)
   ;ldi XL,EICRA    ; load the addr to the external interrupt control reg
   ;st X,TEMP       ; set the external interrupt control reg to the value stored in TEMP
-  ;sbi _SFR_IO_ADDR(EIMSK),INT0  ; enable INT0...
+  ;sbi _SFR_IO_ADDR(EIMSK),INT1  ; enable INT0...
 
   ; set up the timer/counter 0 mode
   ldi TEMP,0x00
@@ -132,6 +137,8 @@ loop:
 TIMER0_OVF_vect:
 ;.global INT0_vect
 ;INT0_vect:
+;.global INT1_vect
+;INT1_vect:
   cpi DIR,ASC     ; compare the direction reg with the ascend direction constant...
   breq ascend     ; ...and skip to the ascend code if they're equal...
   rjmp descend    ; ...or to the descend code if they're not.
