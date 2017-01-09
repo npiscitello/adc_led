@@ -47,15 +47,13 @@ main:
   ldi DIR,ASC
 
   clr XH          ; clear X high byte (we don't need any 2 byte memory addresses)
-  sei             ; globally enable interrupts
 
-  ; set up INT0 interrupt
-  ;ldi TEMP,0x00 | _BV(ISC01) | _BV(ISC00)  ; set up interrupt situations (rising edge)
-  ldi TEMP,0x00 | _BV(ISC01) ; set up interrupt situations (falling edge)
-  ldi XL,EICRA          ; load the addr to the external interrupt control reg
-  st X,TEMP             ; set the external interrupt control reg to the value stored in TEMP
-
-  sbi _SFR_IO_ADDR(EIMSK),INT0  ; enable INT0...
+  ; power on the features we are using
+  ldi XL,PRR      ; set X low byte to a pointer to the PRR reg
+  ld  TEMP,X      ; load the memory at X into TEMP
+  cbr TEMP,PRTIM0 ; clear the timer 0 power save bit (send power to timer 0) 
+  cbr TEMP,PRADC  ; clear the ADC power save bit (send power to the ADC)
+  st  X,TEMP      ; set the memory at X to TEMP
 
   ; set up stack (required for returning from interrupts)
   ldi TEMP,low(RAMEND)  ; set stack pointer to the end of ram
@@ -65,11 +63,30 @@ main:
   ldi XL,SPH            ; load in address to high half of stack pointer
   st X,TEMP             ; set stack pointer to the end of ram
 
-  ; power on ADC
-  ldi XL,PRR      ; set X low byte to a pointer to the PRR reg
-  ld  TEMP,X      ; load the memory at X into TEMP
-  cbr TEMP,PRADC  ; clear the ADC power save bit (send power to the ADC)
-  st  X,TEMP      ; set the memory at X to TEMP
+  ; set up INT0 interrupt
+  ;ldi TEMP,0x00 | _BV(ISC01) | _BV(ISC00)  ; set up interrupt situations (rising edge)
+  ;ldi TEMP,0x00 | _BV(ISC01) ; set up interrupt situations (falling edge)
+  ;ldi XL,EICRA    ; load the addr to the external interrupt control reg
+  ;st X,TEMP       ; set the external interrupt control reg to the value stored in TEMP
+  ;sbi _SFR_IO_ADDR(EIMSK),INT0  ; enable INT0...
+
+  ; set up the timer/counter 0 mode
+  ldi TEMP,0x00
+  sts TCCR0A,TEMP
+
+  ; set up the timer/counter 0 clock source (sys / 1024)
+  ldi TEMP, 0x00 | _BV(CS02) | _BV(CS01)
+  sts TCCR0B,TEMP
+
+  ; clear pending interrupts
+  ldi TEMP,_BV(TOV0)
+  out TIFR0,TEMP
+
+  ; enable timer/counter 0 overflow interrupts
+  ldi TEMP,_BV(TOIE0)
+  sts TIMSK0,TEMP
+
+  sei             ; globally enable interrupts
 
   ; set up ADC trigger source
   ldi XL,ADCSRB   ; set X low byte to a pointer to the ADCSRB reg
@@ -111,8 +128,10 @@ loop:
 
 ; run when an interrupt is triggered on D2 (PD2, pin 4)
 ; eventually, this interrupt will be triggered by a timer instead of a pin
-.global INT0_vect
-INT0_vect:
+.global TIMER0_OVF_vect
+TIMER0_OVF_vect:
+;.global INT0_vect
+;INT0_vect:
   cpi DIR,ASC     ; compare the direction reg with the ascend direction constant...
   breq ascend     ; ...and skip to the ascend code if they're equal...
   rjmp descend    ; ...or to the descend code if they're not.
