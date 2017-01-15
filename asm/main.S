@@ -32,6 +32,12 @@
 ; run when the chip resets
 .global main
 main:
+  ; divide system clock by 256
+  ldi TEMP,0x00 | _BV(CLKPCE)
+  sts CLKPR,TEMP
+  ldi TEMP, 0x00 | _BV(CLKPS3)
+  sts CLKPR,TEMP
+
   ; enable output pins
   ldi TEMP,0x00 | _BV(DDB5) | _BV(DDB4) | _BV(DDB3) | _BV(DDB2) | _BV(DDB1) | _BV(DDB0)
   out _SFR_IO_ADDR(DDRB),TEMP
@@ -64,10 +70,10 @@ main:
   st X,TEMP             ; set stack pointer to the end of ram
 
   ; set up INT0 interrupt
-  ldi TEMP,0x00 | _BV(ISC01) ; set up interrupt situations (falling edge)
-  ldi XL,EICRA    ; load the addr to the external interrupt control reg
-  st X,TEMP       ; set the external interrupt control reg to the value stored in TEMP
-  sbi _SFR_IO_ADDR(EIMSK),INT0  ; enable INT0...
+  ;ldi TEMP,0x00 | _BV(ISC01) ; set up interrupt situations (falling edge)
+  ;ldi XL,EICRA    ; load the addr to the external interrupt control reg
+  ;st X,TEMP       ; set the external interrupt control reg to the value stored in TEMP
+  ;sbi _SFR_IO_ADDR(EIMSK),INT0  ; enable INT0...
 
   ; set up INT1 interrupt
   ;ldi TEMP,0x00 | _BV(ISC11) ; set up interrupt situations (falling edge)
@@ -80,7 +86,7 @@ main:
   sts TCCR0A,TEMP
 
   ; set up the timer/counter 0 clock source (sys / 1024)
-  ldi TEMP, 0x00 | _BV(CS02) | _BV(CS01)
+  ldi TEMP, 0x00 | _BV(CS02) | _BV(CS00)
   sts TCCR0B,TEMP
 
   ; clear pending interrupts
