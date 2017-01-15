@@ -52,41 +52,24 @@ main:
   mov LOC,MIN
   ldi DIR,ASC
 
-  clr XH          ; clear X high byte (we don't need any 2 byte memory addresses)
-
   ; power on the features we are using
-  ldi XL,PRR      ; set X low byte to a pointer to the PRR reg
-  ld  TEMP,X      ; load the memory at X into TEMP
-  cbr TEMP,PRTIM0 ; clear the timer 0 power save bit (send power to timer 0) 
-  cbr TEMP,PRADC  ; clear the ADC power save bit (send power to the ADC)
-  st  X,TEMP      ; set the memory at X to TEMP
+  lds TEMP,PRR
+  cbr TEMP,PRTIM0
+  cbr TEMP,PRADC
+  sts PRR,TEMP
 
-  ; set up stack (required for returning from interrupts)
-  ldi TEMP,low(RAMEND)  ; set stack pointer to the end of ram
-  ldi XL,SPL            ; load in address to low half of stack pointer
-  st X,TEMP             ; set stack pointer to the end of ram
-  ldi TEMP,high(RAMEND) ; set stack pointer to the end of ram
-  ldi XL,SPH            ; load in address to high half of stack pointer
-  st X,TEMP             ; set stack pointer to the end of ram
-
-  ; set up INT0 interrupt
-  ;ldi TEMP,0x00 | _BV(ISC01) ; set up interrupt situations (falling edge)
-  ;ldi XL,EICRA    ; load the addr to the external interrupt control reg
-  ;st X,TEMP       ; set the external interrupt control reg to the value stored in TEMP
-  ;sbi _SFR_IO_ADDR(EIMSK),INT0  ; enable INT0...
-
-  ; set up INT1 interrupt
-  ;ldi TEMP,0x00 | _BV(ISC11) ; set up interrupt situations (falling edge)
-  ;ldi XL,EICRA    ; load the addr to the external interrupt control reg
-  ;st X,TEMP       ; set the external interrupt control reg to the value stored in TEMP
-  ;sbi _SFR_IO_ADDR(EIMSK),INT1  ; enable INT0...
+  ; set stack pointer to the end of RAM (required for returning from interrupts)
+  ldi TEMP,low(RAMEND)
+  sts SPL,TEMP
+  ldi TEMP,high(RAMEND)
+  sts SPH,TEMP
 
   ; set up the timer/counter 0 mode
   ldi TEMP,0x00
   sts TCCR0A,TEMP
 
-  ; set up the timer/counter 0 clock source (sys / 1024)
-  ldi TEMP, 0x00 | _BV(CS02) | _BV(CS00)
+  ; set up the timer/counter 0 clock source (sys / 256)
+  ldi TEMP, 0x00 | _BV(CS02)
   sts TCCR0B,TEMP
 
   ; clear pending interrupts
@@ -97,7 +80,8 @@ main:
   ldi TEMP,_BV(TOIE0)
   sts TIMSK0,TEMP
 
-  sei             ; globally enable interrupts
+  ; globally enable interrupts
+  sei
 
   ; set up ADC trigger source
   ldi XL,ADCSRB   ; set X low byte to a pointer to the ADCSRB reg
@@ -137,14 +121,9 @@ main:
 loop:
   rjmp loop
 
-; run when an interrupt is triggered on D2 (PD2, pin 4)
-; eventually, this interrupt will be triggered by a timer instead of a pin
+; run when timer/counter0 overflows
 .global TIMER0_OVF_vect
 TIMER0_OVF_vect:
-;.global INT0_vect
-;INT0_vect:
-;.global INT1_vect
-;INT1_vect:
   cpi DIR,ASC     ; compare the direction reg with the ascend direction constant...
   breq ascend     ; ...and skip to the ascend code if they're equal...
   rjmp descend    ; ...or to the descend code if they're not.
