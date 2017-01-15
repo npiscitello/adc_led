@@ -24,6 +24,8 @@
 #define DIR r20
 #define ASC 0x01
 #define DSC 0x00
+; r21: ADC value to be written to output compare
+#define ADC r21
 
 ;=== UTILITY MACROS ===;
 #define low(x) ((x) & 0xFF)
@@ -32,10 +34,10 @@
 ; run when the chip resets
 .global main
 main:
-  ; divide system clock by 256
+  ; divide system clock by 64 (I would prescale it down by 256 but the ADC needs at least 100kHz)
   ldi TEMP,0x00 | _BV(CLKPCE)
   sts CLKPR,TEMP
-  ldi TEMP, 0x00 | _BV(CLKPS3)
+  ldi TEMP, 0x00 | _BV(CLKPS2) | _BV(CLKPS1)
   sts CLKPR,TEMP
 
   ; enable output pins
@@ -68,8 +70,8 @@ main:
   ldi TEMP,0x00 | _BV(WGM01)
   sts TCCR0A,TEMP
 
-  ; set up the timer/counter 0 clock source (sys / 256)
-  ldi TEMP, 0x00 | _BV(CS02)
+  ; set up the timer/counter 0 clock source (sys / 1024)
+  ldi TEMP, 0x00 | _BV(CS02) | _BV(CS00)
   sts TCCR0B,TEMP
 
   ; clear pending interrupts
@@ -80,12 +82,16 @@ main:
   ldi TEMP,0x00 | _BV(OCIE0A)
   sts TIMSK0,TEMP
 
-  ; set compare value (will eventually be controlled by ADC)
-  ldi TEMP,0x0F
-  sts OCR0A,TEMP
-
-  ; globally enable interrupts
-  sei
+  ; set up ADC voltage reference and input pin
+  lds TEMP,ADMUX  ; load ADMUX into TEMP
+  cbr TEMP,REFS1  ; enable internal voltage ref
+  sbr TEMP,REFS0  ; enable internal voltage ref
+  cbr TEMP,MUX3   ; set ADC0 as the ADC pin
+  cbr TEMP,MUX2   ; set ADC0 as the ADC pin
+  cbr TEMP,MUX1   ; set ADC0 as the ADC pin
+  cbr TEMP,MUX0   ; set ADC0 as the ADC pin
+  sbr TEMP,ADLAR  ; left adjust result for 8-bit precision
+  sts ADMUX,TEMP  ; set ADMUX to TEMP
 
   ; set up ADC trigger source
   lds TEMP,ADCSRB ; load ADCSRB into TEMP
@@ -94,32 +100,35 @@ main:
   cbr TEMP,ADTS0  ; select ADC interrupt as trigger source
   sts ADCSRB,TEMP ; set ADCSRB to TEMP
 
-  ; set up ADC voltage reference and input pin
-  lds TEMP,ADMUX  ; load ADMUX into TEMP
-  cbr TEMP,REFS1  ; enable internal voltage ref
-  cbr TEMP,REFS0  ; enable internal voltage ref
-  cbr TEMP,MUX3   ; set ADC0 as the ADC pin
-  cbr TEMP,MUX2   ; set ADC0 as the ADC pin
-  cbr TEMP,MUX1   ; set ADC0 as the ADC pin
-  cbr TEMP,MUX0   ; set ADC0 as the ADC pin
-  sts ADMUX,TEMP  ; set the memory at X to TEMP
-
   ; set up ADC clocking and triggering, enable ADC
   lds TEMP,ADCSRA ; load ADCSRA into TEMP
   sbr TEMP,ADEN   ; enable ADC
-  sbr TEMP,ADPS2  ; divide system clock by 128
-  sbr TEMP,ADPS1  ; divide system clock by 128
-  sbr TEMP,ADPS0  ; divide system clock by 128
+  cbr TEMP,ADPS2  ; divide system clock by 2
+  cbr TEMP,ADPS1  ; divide system clock by 2
+  sbr TEMP,ADPS0  ; divide system clock by 2
   sbr TEMP,ADATE  ; enable auto trigger
+  sbr TEMP,ADIE   ; enable ADC interrupts
+  sbr TEMP,ADIF   ; clear pending ADC interrupts
   sbr TEMP,ADSC   ; trigger first read
   sts ADCSRA,TEMP ; set ADCSRA to TEMP
 
+  sei             ; globally enable interrupts
   out _SFR_IO_ADDR(PORTB),LOC   ; start at minimum LED
   rjmp loop       ; jump into infinite loop
 
 ; infinite loop. I guess this could be a sleep maybe?
 loop:
-  rjmp loop
+  lds ADC,ADCH
+  sts OCR0A,ADC
+  rjm loop
+
+; run when the ADC finishes a conversion
+;.global ADC_vect
+;ADC_vect:
+  ;lds ADC,ADCH   ; set the output compare for timer 0 to the ADC value
+;  ldi ADC,0x00
+;  sts OCR0A,ADC  ; set the output compare for timer 0 to the ADC value
+;  reti            ; return from ISR
 
 ; run when timer/counter0 matches OCR0A
 .global TIMER0_COMPA_vect

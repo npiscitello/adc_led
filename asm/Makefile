@@ -301,9 +301,9 @@ AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 #AVRDUDE_FLAGS = -p $(MCU) -c $(AVRDUDE_PROGRAMMER)
 
 # The -B option slows down the ISP clock because the system clock for this project is prescaled
-# waaayyyyyy down (divided by 256 off the 8MHz internal oscillator). As a side effect, writes are
+# waaayyyyyy down (divided by 64 off the 8MHz internal oscillator). As a side effect, writes are
 # abysmally slow. Sorry, not sorry.
-AVRDUDE_FLAGS = -p $(MCU) -c $(AVRDUDE_PROGRAMMER) -B128
+AVRDUDE_FLAGS = -p $(MCU) -c $(AVRDUDE_PROGRAMMER) -B32
 
 AVRDUDE_FLAGS += $(AVRDUDE_NO_VERIFY)
 AVRDUDE_FLAGS += $(AVRDUDE_VERBOSE)
