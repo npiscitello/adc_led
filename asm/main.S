@@ -64,8 +64,8 @@ main:
   ldi TEMP,high(RAMEND)
   sts SPH,TEMP
 
-  ; set up the timer/counter 0 mode
-  ldi TEMP,0x00
+  ; set up the timer/counter 0 mode (CTC)
+  ldi TEMP,0x00 | _BV(WGM01)
   sts TCCR0A,TEMP
 
   ; set up the timer/counter 0 clock source (sys / 256)
@@ -73,46 +73,46 @@ main:
   sts TCCR0B,TEMP
 
   ; clear pending interrupts
-  ldi TEMP,_BV(TOV0)
+  ldi TEMP,0x00 | _BV(TOV0)
   out TIFR0,TEMP
 
-  ; enable timer/counter 0 overflow interrupts
-  ldi TEMP,_BV(TOIE0)
+  ; enable timer/counter 0 output compare A interrupt
+  ldi TEMP,0x00 | _BV(OCIE0A)
   sts TIMSK0,TEMP
+
+  ; set compare value (will eventually be controlled by ADC)
+  ldi TEMP,0x0F
+  sts OCR0A,TEMP
 
   ; globally enable interrupts
   sei
 
   ; set up ADC trigger source
-  ldi XL,ADCSRB   ; set X low byte to a pointer to the ADCSRB reg
-  ld  TEMP,X      ; load the memory at X into TEMP
+  lds TEMP,ADCSRB ; load ADCSRB into TEMP
   cbr TEMP,ADTS2  ; select ADC interrupt as trigger source
   cbr TEMP,ADTS1  ; select ADC interrupt as trigger source
   cbr TEMP,ADTS0  ; select ADC interrupt as trigger source
-  st  X,TEMP      ; set the memory at X to TEMP
+  sts ADCSRB,TEMP ; set ADCSRB to TEMP
 
   ; set up ADC voltage reference and input pin
-  ldi XL,ADMUX    ; set X low byte to a pointer to the ADCSRB reg
-  ld  TEMP,X      ; load the memory at X into TEMP
+  lds TEMP,ADMUX  ; load ADMUX into TEMP
   cbr TEMP,REFS1  ; enable internal voltage ref
   cbr TEMP,REFS0  ; enable internal voltage ref
   cbr TEMP,MUX3   ; set ADC0 as the ADC pin
   cbr TEMP,MUX2   ; set ADC0 as the ADC pin
   cbr TEMP,MUX1   ; set ADC0 as the ADC pin
   cbr TEMP,MUX0   ; set ADC0 as the ADC pin
-  st  X,TEMP      ; set the memory at X to TEMP
+  sts ADMUX,TEMP  ; set the memory at X to TEMP
 
   ; set up ADC clocking and triggering, enable ADC
-  ldi XL,ADCSRA   ; set X low byte to a pointer to the ADCSRA reg
-  ld  TEMP,X      ; load the memory at X into TEMP
+  lds TEMP,ADCSRA ; load ADCSRA into TEMP
   sbr TEMP,ADEN   ; enable ADC
   sbr TEMP,ADPS2  ; divide system clock by 128
   sbr TEMP,ADPS1  ; divide system clock by 128
   sbr TEMP,ADPS0  ; divide system clock by 128
   sbr TEMP,ADATE  ; enable auto trigger
-  st  X,TEMP      ; set the memory at X to TEMP
   sbr TEMP,ADSC   ; trigger first read
-  st  X,TEMP      ; set the memory at X to TEMP
+  sts ADCSRA,TEMP ; set ADCSRA to TEMP
 
   out _SFR_IO_ADDR(PORTB),LOC   ; start at minimum LED
   rjmp loop       ; jump into infinite loop
@@ -121,9 +121,9 @@ main:
 loop:
   rjmp loop
 
-; run when timer/counter0 overflows
-.global TIMER0_OVF_vect
-TIMER0_OVF_vect:
+; run when timer/counter0 matches OCR0A
+.global TIMER0_COMPA_vect
+TIMER0_COMPA_vect:
   cpi DIR,ASC     ; compare the direction reg with the ascend direction constant...
   breq ascend     ; ...and skip to the ascend code if they're equal...
   rjmp descend    ; ...or to the descend code if they're not.
