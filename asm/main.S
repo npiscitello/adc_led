@@ -35,6 +35,7 @@
 .global main
 main:
   ; divide system clock by 64 (I would prescale it down by 256 but the ADC needs at least 100kHz)
+  ; this gives a system clock speed of 8 MHz / 64 = 125 kHz
   ldi TEMP,0x00 | _BV(CLKPCE)
   sts CLKPR,TEMP
   ldi TEMP, 0x00 | _BV(CLKPS2) | _BV(CLKPS1)
@@ -103,9 +104,9 @@ main:
   ; set up ADC clocking and triggering, enable ADC
   lds TEMP,ADCSRA ; load ADCSRA into TEMP
   sbr TEMP,ADEN   ; enable ADC
-  cbr TEMP,ADPS2  ; divide system clock by 2
-  cbr TEMP,ADPS1  ; divide system clock by 2
-  sbr TEMP,ADPS0  ; divide system clock by 2
+  cbr TEMP,ADPS2  ; divide system clock by 2 (62.5 kHz)
+  cbr TEMP,ADPS1  ; divide system clock by 2 (62.5 kHz)
+  sbr TEMP,ADPS0  ; divide system clock by 2 (62.5 kHz)
   sbr TEMP,ADATE  ; enable auto trigger
   sbr TEMP,ADIE   ; enable ADC interrupts
   sbr TEMP,ADIF   ; clear pending ADC interrupts
@@ -118,9 +119,9 @@ main:
 
 ; infinite loop. I guess this could be a sleep maybe?
 loop:
-  lds ADC,ADCH
-  sts OCR0A,ADC
-  rjm loop
+  lds ADC,ADCH    ; read the ADC value
+  sts OCR0A,ADC   ; write it to the timer compare value
+  rjmp loop       ; loop infinitely
 
 ; run when the ADC finishes a conversion
 ;.global ADC_vect
