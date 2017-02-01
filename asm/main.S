@@ -2,6 +2,7 @@
 ; January 2017
 ; Atmel ATMEGA328P-PU
 ; avr-gcc 4.3.3 (WinAVR 20100110)
+; fuses: default (l: 0x62, h: 0xD9, e: 0x07)
 
 ; I apologize for the stupidly verbose comments; this is my first foray into assembler and I intend
 ; on using this file as a reference for future projects
@@ -35,12 +36,13 @@
 ; run when the chip resets
 .global main
 main:
-  ; divide system clock by 64 (I would prescale it down by 256 but the ADC needs at least 100kHz)
-  ; this gives a system clock speed of 8 MHz / 64 = 125 kHz
-  ; TESTED - the ADC problem is NOT clock-related
+  ; divide 8 MHz internal crystal by 64
+  ; the clock is already divided by 8 due to fuse settings
+  ; set prescaler to divide that signal by 8 additionally
+  ; this gives a system clock speed of 1 MHz / 8 = 125 kHz
   ldi TEMP,0x00 | _BV(CLKPCE)
   sts CLKPR,TEMP
-  ldi TEMP, 0x00 | _BV(CLKPS2) | _BV(CLKPS1)
+  ldi TEMP, 0x00 | _BV(CLKPS1) | _BV(CLKPS0)
   sts CLKPR,TEMP
 
   ; enable output pins
