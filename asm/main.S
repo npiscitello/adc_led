@@ -109,9 +109,6 @@ main:
 
 ; infinite loop. I guess this could be a sleep maybe?
 loop:
-  ;lds CONV,ADCH    ; read the ADC value
-  ;ldi CONV,0xFF    ; test that the timer works correctly
-  ;sts OCR0A,CONV   ; write it to the timer compare value
   rjmp loop       ; loop infinitely
 
 ; run when the ADC finishes a conversion
