@@ -27,7 +27,7 @@
 #define ASC 0x01
 #define DSC 0x00
 ; r21: ADC value to be written to output compare
-#define ADC r21
+#define CONV r21
 
 ;=== UTILITY MACROS ===;
 #define low(x) ((x) & 0xFF)
@@ -60,7 +60,7 @@ main:
   ldi DIR,ASC
 
   ; power on the features we are using
-  ; TESTED - the timer is NOT interfereing with the ADC
+  ; <TODO> - turn off what we're not using, use an assign instead of RMW
   lds TEMP,PRR
   cbr TEMP,PRTIM0
   cbr TEMP,PRADC
@@ -90,6 +90,7 @@ main:
 
   ; set up ADC voltage reference and input pin
   ; ADMUX [ REFS1 | REFS0 | ADLAR | - | MUX3 | MUX2 | MUX1 | MUX0 ]
+  ; <TODO> - assign, not RMW
   lds TEMP,ADMUX  ; load ADMUX into TEMP
   cbr TEMP,REFS1  ; enable internal voltage ref
   sbr TEMP,REFS0  ; enable internal voltage ref
@@ -102,6 +103,7 @@ main:
 
   ; set up ADC trigger source
   ; ADCSRB [ - | ACME | - | - | - | ADTS2 | ADTS1 | ADTS0 ]
+  ; <TODO> - assign, not RMW
   lds TEMP,ADCSRB ; load ADCSRB into TEMP
   cbr TEMP,ADTS2  ; select ADC interrupt as trigger source
   cbr TEMP,ADTS1  ; select ADC interrupt as trigger source
@@ -110,6 +112,7 @@ main:
 
   ; set up ADC clocking and triggering, enable ADC
   ; ADCSRA [ ADEN | ADSC | ADATE | ADIF | ADIE | ADPS2 | ADPS1 | ADPS0 ]
+  ; <TODO> - assign, not RMW
   lds TEMP,ADCSRA ; load ADCSRA into TEMP
   sbr TEMP,ADEN   ; enable ADC
   cbr TEMP,ADPS2  ; divide system clock by 2 (62.5 kHz)
@@ -127,17 +130,17 @@ main:
 
 ; infinite loop. I guess this could be a sleep maybe?
 loop:
-  lds ADC,ADCH    ; read the ADC value
-  ;ldi ADC,0xFF    ; test that the timer works correctly
-  ;sts OCR0A,ADC   ; write it to the timer compare value
+  lds CONV,ADCH    ; read the ADC value
+  ;ldi CONV,0xFF    ; test that the timer works correctly
+  ;sts OCR0A,CONV   ; write it to the timer compare value
   rjmp loop       ; loop infinitely
 
 ; run when the ADC finishes a conversion
 .global ADC_vect
 ADC_vect:
-  ;lds ADC,ADCH   ; set the output compare for timer 0 to the ADC value
-;  ldi ADC,0x00
-;  sts OCR0A,ADC  ; set the output compare for timer 0 to the ADC value
+  ;lds CONV,ADCH   ; set the output compare for timer 0 to the ADC value
+;  ldi CONV,0x00
+;  sts OCR0A,CONV  ; set the output compare for timer 0 to the ADC value
 ;  reti            ; return from ISR
 
 ; run when timer/counter0 matches OCR0A
