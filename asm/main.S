@@ -71,20 +71,20 @@ main:
   sts SPH,TEMP
 
   ; set up the timer/counter 0 mode (CTC)
-  ;ldi TEMP,0x00 | _BV(WGM01)
-  ;sts TCCR0A,TEMP
+  ldi TEMP,0x00 | _BV(WGM01)
+  sts TCCR0A,TEMP
 
   ; set up the timer/counter 0 clock source (sys / 1024)
-  ;ldi TEMP,0x00 | _BV(CS02) | _BV(CS00)
-  ;sts TCCR0B,TEMP
+  ldi TEMP,0x00 | _BV(CS02) | _BV(CS00)
+  sts TCCR0B,TEMP
 
   ; clear pending interrupts
-  ;ldi TEMP,0x00 | _BV(TOV0)
-  ;out TIFR0,TEMP
+  ldi TEMP,0x00 | _BV(TOV0)
+  out TIFR0,TEMP
 
   ; enable timer/counter 0 output compare A interrupt
-  ;ldi TEMP,0x00 | _BV(OCIE0A)
-  ;sts TIMSK0,TEMP
+  ldi TEMP,0x00 | _BV(OCIE0A)
+  sts TIMSK0,TEMP
 
   ; set up ADC voltage reference and input pin
   ; ADMUX [ REFS1 | REFS0 | ADLAR | - | MUX3 | MUX2 | MUX1 | MUX0 ]
@@ -107,7 +107,7 @@ main:
 
 ; infinite loop. I guess this could be a sleep maybe?
 loop:
-  lds CONV,ADCH    ; read the ADC value
+  ;lds CONV,ADCH    ; read the ADC value
   ;ldi CONV,0xFF    ; test that the timer works correctly
   ;sts OCR0A,CONV   ; write it to the timer compare value
   rjmp loop       ; loop infinitely
@@ -115,14 +115,13 @@ loop:
 ; run when the ADC finishes a conversion
 .global ADC_vect
 ADC_vect:
-  ;lds CONV,ADCH   ; set the output compare for timer 0 to the ADC value
-;  ldi CONV,0x00
-;  sts OCR0A,CONV  ; set the output compare for timer 0 to the ADC value
-;  reti            ; return from ISR
+  lds CONV,ADCH   ; set the output compare for timer 0 to the ADC value
+  sts OCR0A,CONV  ; set the output compare for timer 0 to the ADC value
+  reti            ; return from ISR
 
 ; run when timer/counter0 matches OCR0A
-;.global TIMER0_COMPA_vect
-;TIMER0_COMPA_vect:
+.global TIMER0_COMPA_vect
+TIMER0_COMPA_vect:
   cpi DIR,ASC     ; compare the direction reg with the ascend direction constant...
   breq ascend     ; ...and skip to the ascend code if they're equal...
   rjmp descend    ; ...or to the descend code if they're not.
