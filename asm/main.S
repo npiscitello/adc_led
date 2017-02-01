@@ -60,8 +60,8 @@ main:
   ldi DIR,ASC
 
   ; power on the features we are using
-  ; <TODO> - turn off what we're not using
-  ldi TEMP, 0x00 | _BV(PRTIM0) | _BV(PRADC)
+  ; PRR [ PRTWI | PRTIM2 | PRTIM0 | - | PRTIM1 | PRSPI | PRUSART0 | PRADC ]
+  ldi TEMP, 0xFF & !_BV(PRTIM0) & !_BV(PRADC)
   sts PRR,TEMP
 
   ; set stack pointer to the end of RAM (required for returning from interrupts)
