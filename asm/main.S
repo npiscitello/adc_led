@@ -40,6 +40,8 @@ main:
   ; the clock is already divided by 8 due to fuse settings
   ; set prescaler to divide that signal by 8 additionally
   ; this gives a system clock speed of 1 MHz / 8 = 125 kHz
+  ; According to the datasheet, the ADC needs a system clock above 100 kHz,
+  ; so this is as low as we can go.
   ldi TEMP,0x00 | _BV(CLKPCE)
   sts CLKPR,TEMP
   ldi TEMP, 0x00 | _BV(CLKPS1) | _BV(CLKPS0)
@@ -59,7 +61,7 @@ main:
   mov LOC,MIN
   ldi DIR,ASC
 
-  ; power on the features we are using
+  ; power on only the features we are using
   ; PRR [ PRTWI | PRTIM2 | PRTIM0 | - | PRTIM1 | PRSPI | PRUSART0 | PRADC ]
   ldi TEMP, 0xFF & !_BV(PRTIM0) & !_BV(PRADC)
   sts PRR,TEMP
