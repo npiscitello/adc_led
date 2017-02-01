@@ -36,6 +36,7 @@
 main:
   ; divide system clock by 64 (I would prescale it down by 256 but the ADC needs at least 100kHz)
   ; this gives a system clock speed of 8 MHz / 64 = 125 kHz
+  ; TESTED - the ADC problem is NOT clock-related
   ldi TEMP,0x00 | _BV(CLKPCE)
   sts CLKPR,TEMP
   ldi TEMP, 0x00 | _BV(CLKPS2) | _BV(CLKPS1)
@@ -56,6 +57,7 @@ main:
   ldi DIR,ASC
 
   ; power on the features we are using
+  ; TESTED - the timer is NOT interfereing with the ADC
   lds TEMP,PRR
   cbr TEMP,PRTIM0
   cbr TEMP,PRADC
@@ -119,21 +121,22 @@ main:
 
 ; infinite loop. I guess this could be a sleep maybe?
 loop:
-  lds ADC,ADCH    ; read the ADC value
-  sts OCR0A,ADC   ; write it to the timer compare value
+  ;lds ADC,ADCH    ; read the ADC value
+  ;ldi ADC,0xFF    ; test that the timer works correctly
+  ;sts OCR0A,ADC   ; write it to the timer compare value
   rjmp loop       ; loop infinitely
 
 ; run when the ADC finishes a conversion
-;.global ADC_vect
-;ADC_vect:
+.global ADC_vect
+ADC_vect:
   ;lds ADC,ADCH   ; set the output compare for timer 0 to the ADC value
 ;  ldi ADC,0x00
 ;  sts OCR0A,ADC  ; set the output compare for timer 0 to the ADC value
 ;  reti            ; return from ISR
 
 ; run when timer/counter0 matches OCR0A
-.global TIMER0_COMPA_vect
-TIMER0_COMPA_vect:
+;.global TIMER0_COMPA_vect
+;TIMER0_COMPA_vect:
   cpi DIR,ASC     ; compare the direction reg with the ascend direction constant...
   breq ascend     ; ...and skip to the ascend code if they're equal...
   rjmp descend    ; ...or to the descend code if they're not.
