@@ -60,10 +60,8 @@ main:
   ldi DIR,ASC
 
   ; power on the features we are using
-  ; <TODO> - turn off what we're not using, use an assign instead of RMW
-  lds TEMP,PRR
-  cbr TEMP,PRTIM0
-  cbr TEMP,PRADC
+  ; <TODO> - turn off what we're not using
+  ldi TEMP, 0x00 | _BV(PRTIM0) | _BV(PRADC)
   sts PRR,TEMP
 
   ; set stack pointer to the end of RAM (required for returning from interrupts)
@@ -77,7 +75,7 @@ main:
   ;sts TCCR0A,TEMP
 
   ; set up the timer/counter 0 clock source (sys / 1024)
-  ;ldi TEMP, 0x00 | _BV(CS02) | _BV(CS00)
+  ;ldi TEMP,0x00 | _BV(CS02) | _BV(CS00)
   ;sts TCCR0B,TEMP
 
   ; clear pending interrupts
@@ -90,38 +88,17 @@ main:
 
   ; set up ADC voltage reference and input pin
   ; ADMUX [ REFS1 | REFS0 | ADLAR | - | MUX3 | MUX2 | MUX1 | MUX0 ]
-  ; <TODO> - assign, not RMW
-  lds TEMP,ADMUX  ; load ADMUX into TEMP
-  cbr TEMP,REFS1  ; enable internal voltage ref
-  sbr TEMP,REFS0  ; enable internal voltage ref
-  cbr TEMP,MUX3   ; set ADC0 as the ADC pin
-  cbr TEMP,MUX2   ; set ADC0 as the ADC pin
-  cbr TEMP,MUX1   ; set ADC0 as the ADC pin
-  cbr TEMP,MUX0   ; set ADC0 as the ADC pin
-  sbr TEMP,ADLAR  ; left adjust result for 8-bit precision
+  ldi TEMP,0x00 | _BV(REFS0) | _BV(ADLAR)
   sts ADMUX,TEMP  ; set ADMUX to TEMP
 
   ; set up ADC trigger source
   ; ADCSRB [ - | ACME | - | - | - | ADTS2 | ADTS1 | ADTS0 ]
-  ; <TODO> - assign, not RMW
-  lds TEMP,ADCSRB ; load ADCSRB into TEMP
-  cbr TEMP,ADTS2  ; select ADC interrupt as trigger source
-  cbr TEMP,ADTS1  ; select ADC interrupt as trigger source
-  cbr TEMP,ADTS0  ; select ADC interrupt as trigger source
+  ldi TEMP,0x00
   sts ADCSRB,TEMP ; set ADCSRB to TEMP
 
   ; set up ADC clocking and triggering, enable ADC
   ; ADCSRA [ ADEN | ADSC | ADATE | ADIF | ADIE | ADPS2 | ADPS1 | ADPS0 ]
-  ; <TODO> - assign, not RMW
-  lds TEMP,ADCSRA ; load ADCSRA into TEMP
-  sbr TEMP,ADEN   ; enable ADC
-  cbr TEMP,ADPS2  ; divide system clock by 2 (62.5 kHz)
-  cbr TEMP,ADPS1  ; divide system clock by 2 (62.5 kHz)
-  cbr TEMP,ADPS0  ; divide system clock by 2 (62.5 kHz)
-  sbr TEMP,ADATE  ; enable auto trigger
-  sbr TEMP,ADIE   ; enable ADC interrupts
-  sbr TEMP,ADIF   ; clear pending ADC interrupts
-  sbr TEMP,ADSC   ; trigger first read
+  ldi TEMP,0x00 | _BV(ADEN) | _BV(ADATE) | _BV(ADIE) | _BV(ADIF) | _BV(ADSC)
   sts ADCSRA,TEMP ; set ADCSRA to TEMP
 
   sei             ; globally enable interrupts
