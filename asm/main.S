@@ -10,6 +10,7 @@
 ; 'avr/ioXXX.h' as the subroutine labels AS LONG AS those labels are declared '.global'.
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
 
 ;=== REGISTER MAP ===;
 ; r16: temporary working reg
@@ -70,22 +71,23 @@ main:
   sts SPH,TEMP
 
   ; set up the timer/counter 0 mode (CTC)
-  ldi TEMP,0x00 | _BV(WGM01)
-  sts TCCR0A,TEMP
+  ;ldi TEMP,0x00 | _BV(WGM01)
+  ;sts TCCR0A,TEMP
 
   ; set up the timer/counter 0 clock source (sys / 1024)
-  ldi TEMP, 0x00 | _BV(CS02) | _BV(CS00)
-  sts TCCR0B,TEMP
+  ;ldi TEMP, 0x00 | _BV(CS02) | _BV(CS00)
+  ;sts TCCR0B,TEMP
 
   ; clear pending interrupts
-  ldi TEMP,0x00 | _BV(TOV0)
-  out TIFR0,TEMP
+  ;ldi TEMP,0x00 | _BV(TOV0)
+  ;out TIFR0,TEMP
 
   ; enable timer/counter 0 output compare A interrupt
-  ldi TEMP,0x00 | _BV(OCIE0A)
-  sts TIMSK0,TEMP
+  ;ldi TEMP,0x00 | _BV(OCIE0A)
+  ;sts TIMSK0,TEMP
 
   ; set up ADC voltage reference and input pin
+  ; ADMUX [ REFS1 | REFS0 | ADLAR | - | MUX3 | MUX2 | MUX1 | MUX0 ]
   lds TEMP,ADMUX  ; load ADMUX into TEMP
   cbr TEMP,REFS1  ; enable internal voltage ref
   sbr TEMP,REFS0  ; enable internal voltage ref
@@ -97,6 +99,7 @@ main:
   sts ADMUX,TEMP  ; set ADMUX to TEMP
 
   ; set up ADC trigger source
+  ; ADCSRB [ - | ACME | - | - | - | ADTS2 | ADTS1 | ADTS0 ]
   lds TEMP,ADCSRB ; load ADCSRB into TEMP
   cbr TEMP,ADTS2  ; select ADC interrupt as trigger source
   cbr TEMP,ADTS1  ; select ADC interrupt as trigger source
@@ -104,11 +107,12 @@ main:
   sts ADCSRB,TEMP ; set ADCSRB to TEMP
 
   ; set up ADC clocking and triggering, enable ADC
+  ; ADCSRA [ ADEN | ADSC | ADATE | ADIF | ADIE | ADPS2 | ADPS1 | ADPS0 ]
   lds TEMP,ADCSRA ; load ADCSRA into TEMP
   sbr TEMP,ADEN   ; enable ADC
   cbr TEMP,ADPS2  ; divide system clock by 2 (62.5 kHz)
   cbr TEMP,ADPS1  ; divide system clock by 2 (62.5 kHz)
-  sbr TEMP,ADPS0  ; divide system clock by 2 (62.5 kHz)
+  cbr TEMP,ADPS0  ; divide system clock by 2 (62.5 kHz)
   sbr TEMP,ADATE  ; enable auto trigger
   sbr TEMP,ADIE   ; enable ADC interrupts
   sbr TEMP,ADIF   ; clear pending ADC interrupts
@@ -121,7 +125,7 @@ main:
 
 ; infinite loop. I guess this could be a sleep maybe?
 loop:
-  ;lds ADC,ADCH    ; read the ADC value
+  lds ADC,ADCH    ; read the ADC value
   ;ldi ADC,0xFF    ; test that the timer works correctly
   ;sts OCR0A,ADC   ; write it to the timer compare value
   rjmp loop       ; loop infinitely
