@@ -1,4 +1,4 @@
-#What This Does
+# What This Does
 The goal of this project is to create an LED chase sequence using an arduino. The speed of the chase
 is to be controlled by the user through a potentiometer.
 
@@ -7,7 +7,7 @@ value (scaled if necessary) to delay between steps in the chase. This is to be d
 of concept (and to cut my teeth on the avr-gcc and WinAVR toolchain) and then in assembler as an
 excersise to learn assembler (also, because I guess I like pain).
 
-#The Circuit
+# The Circuit
 Very simple - the Arduino has the anode of an LED each on pins D8 through D13. The cathodes are on a
 common bus and linked to GND through a 220 ohm resistor. A potentiometer is hooked up between +5V
 and GND with the wiper on A0. For the switch setup, see the RC debouncer at
