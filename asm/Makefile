@@ -603,11 +603,13 @@ clean_list :
 	$(REMOVE) $(TARGET).map
 	$(REMOVE) $(TARGET).sym
 	$(REMOVE) $(TARGET).lss
-	$(REMOVE) $(SRC:%.c=$(OBJDIR)/%.o)
-	$(REMOVE) $(SRC:%.c=$(OBJDIR)/%.lst)
-	$(REMOVE) $(SRC:.c=.s)
-	$(REMOVE) $(SRC:.c=.d)
-	$(REMOVE) $(SRC:.c=.i)
+	$(REMOVE) $(TARGET).o
+	$(REMOVE) $(TARGET).lst
+#	$(REMOVE) $(SRC:%.c=$(OBJDIR)/%.o)
+#	$(REMOVE) $(SRC:%.c=$(OBJDIR)/%.lst)
+#	$(REMOVE) $(SRC:.c=.s)
+#	$(REMOVE) $(SRC:.c=.d)
+#	$(REMOVE) $(SRC:.c=.i)
 	$(REMOVEDIR) .dep
 
 
