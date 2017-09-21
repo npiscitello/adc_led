@@ -1,7 +1,7 @@
 ; Nick Piscitello
-; January 2017
-; Atmel ATMEGA328P-PU
-; avr-gcc 4.3.3 (WinAVR 20100110)
+; September 2017
+; Atmel ATMEGA328-PU
+; avr-gcc 7.1.0
 ; fuses: default (l: 0x62, h: 0xD9, e: 0x07)
 
 ; I apologize for the stupidly verbose comments; this is my first foray into assembler and I intend
@@ -36,21 +36,23 @@
 ; run when the chip resets
 .global main
 main:
-  ; divide 8 MHz internal crystal by 64
-  ; the clock is already divided by 8 due to fuse settings
-  ; set prescaler to divide that signal by 8 additionally
-  ; this gives a system clock speed of 1 MHz / 8 = 125 kHz
-  ; According to the datasheet, the ADC needs a system clock above 100 kHz,
-  ; so this is as low as we can go.
+  ; divide 8 MHz internal crystal by 256
+  ; The fuse settings cause the chip to start up with CLKPS[3:0]
+  ; set to divide the clock by 8. This section resets those bits
+  ; to divide the clock by 256.
+  ; This gives a system clock speed of 8 MHz / 256 = 31.25 kHz
+  ; Serial with AVRDUDE must be run slower than normal (-B128 or so)
   ldi TEMP,0x00 | _BV(CLKPCE)
   sts CLKPR,TEMP
-  ldi TEMP, 0x00 | _BV(CLKPS1) | _BV(CLKPS0)
+  ldi TEMP, 0x00 | _BV(CLKPS3)
   sts CLKPR,TEMP
 
   ; enable output pins
-  ;ldi TEMP,0x00 | _BV(DDD5) | _BV(DDD4) | _BV(DDD3) | _BV(DDD2) | _BV(DDD1) | _BV(DDD0)
+  ; LED order: D0 D1 D2 D3 D4 D5 D6 D7 B6 B7
   ldi TEMP,0xFF
   out _SFR_IO_ADDR(DDRD),TEMP
+  ldi TEMP,0x00 | _BV(DDB6) | _BV(DDB7)
+  out _SFR_IO_ADDR(DDRB),TEMP
 
   ; set min and max for LED chase and initialize location to min LED
   clr MIN
@@ -64,7 +66,7 @@ main:
 
   ; power on only the features we are using
   ; PRR [ PRTWI | PRTIM2 | PRTIM0 | - | PRTIM1 | PRSPI | PRUSART0 | PRADC ]
-  ldi TEMP, 0xFF & !_BV(PRTIM0) & !_BV(PRADC)
+  ldi TEMP, 0xFF & !_BV(PRTIM0)
   sts PRR,TEMP
 
   ; set stack pointer to the end of RAM (required for returning from interrupts)
@@ -77,7 +79,8 @@ main:
   ldi TEMP,0x00 | _BV(WGM01)
   sts TCCR0A,TEMP
 
-  ; set up the timer/counter 0 clock source (sys / 1024)
+  ; set up the timer/counter 0 clock source (sys / 1024) - with a 31.25 kHz
+  ; system clock, that means the timer runs just a little over 30.5 Hz
   ldi TEMP,0x00 | _BV(CS02) | _BV(CS00)
   sts TCCR0B,TEMP
 
@@ -85,24 +88,11 @@ main:
   ldi TEMP,0x00 | _BV(TOV0)
   out TIFR0,TEMP
 
-  ; enable timer/counter 0 output compare A interrupt
+  ; enable timer/counter 0 output compare A interrupt, set counter value
   ldi TEMP,0x00 | _BV(OCIE0A)
   sts TIMSK0,TEMP
-
-  ; set up ADC voltage reference and input pin
-  ; ADMUX [ REFS1 | REFS0 | ADLAR | - | MUX3 | MUX2 | MUX1 | MUX0 ]
-  ldi TEMP,0x00 | _BV(REFS0) | _BV(ADLAR)
-  sts ADMUX,TEMP  ; set ADMUX to TEMP
-
-  ; set up ADC trigger source
-  ; ADCSRB [ - | ACME | - | - | - | ADTS2 | ADTS1 | ADTS0 ]
-  ldi TEMP,0x00
-  sts ADCSRB,TEMP ; set ADCSRB to TEMP
-
-  ; set up ADC clocking and triggering, enable ADC
-  ; ADCSRA [ ADEN | ADSC | ADATE | ADIF | ADIE | ADPS2 | ADPS1 | ADPS0 ]
-  ldi TEMP,0x00 | _BV(ADEN) | _BV(ADATE) | _BV(ADIE) | _BV(ADIF) | _BV(ADSC)
-  sts ADCSRA,TEMP ; set ADCSRA to TEMP
+  ldi TEMP,0x1F
+  sts OCR0A,TEMP
 
   sei             ; globally enable interrupts
   out _SFR_IO_ADDR(PORTD),LOC   ; start at minimum LED
@@ -111,13 +101,6 @@ main:
 ; infinite loop. I guess this could be a sleep maybe?
 loop:
   rjmp loop       ; loop infinitely
-
-; run when the ADC finishes a conversion
-.global ADC_vect
-ADC_vect:
-  lds CONV,ADCH   ; set the output compare for timer 0 to the ADC value
-  sts OCR0A,CONV  ; set the output compare for timer 0 to the ADC value
-  reti            ; return from ISR
 
 ; run when timer/counter0 matches OCR0A
 .global TIMER0_COMPA_vect
