@@ -4,34 +4,34 @@
 ; avr-gcc 7.1.0
 ; fuses: default (l: 0x62, h: 0xD9, e: 0x07)
 
-; I apologize for the stupidly verbose comments; this is my first foray into assembler and I intend
-; on using this file as a reference for future projects
-
-; the interrupt table is handled automatically by the compiler using the macros defined in 
-; 'avr/ioXXX.h' as the subroutine labels AS LONG AS those labels are declared '.global'.
-
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
 ;=== REGISTER MAP ===;
-; r16: temporary working reg
+; temporary working reg
 #define TEMP r16
-; r17: minimum LED for chase sequence
-#define MIN r17
-; r18: maximimum LED for chase sequence
-#define MAX r18
-; r19: current LED lit
-#define LOC r19
-; r20: LED direction (1 for ascending, 0 for descending)
-#define DIR r20
-#define ASC 0x01
-#define DSC 0x00
-; r21: ADC value to be written to output compare
-#define CONV r21
+; current LED index lit
+#define INDEX r17
+; output bitfield
+#define OUT r18
+; LED direction
+#define DIR r19
+; iterator reg for FOR loop
+#define CNT r20
 
 ;=== UTILITY MACROS ===;
 #define low(x) ((x) & 0xFF)
 #define high(x) (((x) >> 8) & 0xFF)
+
+;=== CONSTANTS ===;
+; LEDs are ascending
+#define ASC 0x01
+; LEDs are descending
+#define DSC 0x00
+; minimum index
+#define MIN 0x00
+; maximum index (must be <= 0x09)
+#define MAX 0x09
 
 ; run when the chip resets
 .global main
@@ -55,13 +55,9 @@ main:
   out _SFR_IO_ADDR(DDRB),TEMP
 
   ; set min and max for LED chase and initialize location to min LED
-  clr MIN
-  clr MAX
-  clr LOC
+  clr INDEX
   clr DIR
-  ldi MIN,_BV(PORTD0)
-  ldi MAX,_BV(PORTD7)
-  mov LOC,MIN
+  ldi INDEX,MIN
   ldi DIR,ASC
 
   ; power on only the features we are using
@@ -94,33 +90,58 @@ main:
   ldi TEMP,0x1F
   sts OCR0A,TEMP
 
-  sei             ; globally enable interrupts
-  out _SFR_IO_ADDR(PORTD),LOC   ; start at minimum LED
-  rjmp loop       ; jump into infinite loop
+  sei               ; globally enable interrupts
+  rjmp loop         ; jump into infinite loop
 
-; infinite loop. I guess this could be a sleep maybe?
+; infinite loop. In the spirit of minimizing interrupt code, the leds are lit from here
 loop:
-  rjmp loop       ; loop infinitely
+  mov TEMP,INDEX    ; store a static copy of INDEX in case the timer fires during update
+  ldi OUT,0x01      ; load a seed to shift right
+  mov CNT,TEMP      ; load the loop counter with the number of times to shift
+  cpi TEMP,0x08
+  brlo shift_loop   ; if the index is less than 8, jump directly into the loop
+  subi CNT,2        ; if not, subtract 2 (shift 2 fewer places right)
+  shift_loop:       ; for loop to shift the 0x01 seed right far enough
+    cpi CNT,0x00    ; if the counter has reached zero...
+    breq output     ; jump to the output router
+    lsl OUT         ; if not, left shift the output byte...
+    dec CNT         ; ...decrement the counter...
+    rjmp shift_loop ; ...and jump back to the head of the loop
+
+output:
+  cpi TEMP,0x08
+  brsh out_portb    ; send the output to PORTB if the index is high enough...
+  rjmp out_portd    ; ...or to PORTD if it's low enough
+  out_portd:
+    out _SFR_IO_ADDR(PORTB),0x00
+    out _SFR_IO_ADDR(PORTD),OUT
+    rjmp loop       ; loop infinitely
+  out_portb:
+    out _SFR_IO_ADDR(PORTD),0x00
+    out _SFR_IO_ADDR(PORTB),OUT
+    rjmp loop       ; loop infinitely
 
 ; run when timer/counter0 matches OCR0A
 .global TIMER0_COMPA_vect
 TIMER0_COMPA_vect:
-  cpi DIR,ASC     ; compare the direction reg with the ascend direction constant...
-  breq ascend     ; ...and skip to the ascend code if they're equal...
-  rjmp descend    ; ...or to the descend code if they're not.
+  cpi DIR,ASC       ; compare the direction reg with the ascend direction constant...
+  breq ascend       ; ...and skip to the ascend code if they're equal...
+  rjmp descend      ; ...or to the descend code if they're not.
 
 ascend:
-  lsl LOC         ; increment LED location (originally used rol, but it screwed up the compare
-  out _SFR_IO_ADDR(PORTD),LOC   ; write LED location out
-  cpse LOC,MAX    ; compare the location to the max location...
-  reti            ; ...and skip this instruction if they're the same.
-  ldi DIR,DSC     ; reverse direction
-  reti            ; return from ISR
+  inc INDEX         ; increment LED location (originally used rol, but it screwed up the compare
+  cpi INDEX,MAX     ; compare the index to the max index...
+  breq start_descending
+  reti              ; ...and skip this instruction if they're the same.
+  start_descending:
+    ldi DIR,DSC     ; reverse direction
+    reti            ; return from ISR
 
 descend:
-  lsr LOC         ; decrement LED location (originally used ror, but it screwed up the compare)
-  out _SFR_IO_ADDR(PORTD),LOC   ; write LED location out
-  cpse LOC,MIN    ; compare the current location with the min location...
-  reti            ; ...and skip this instruction if they're the same.
-  ldi DIR,ASC     ; reverse direction
-  reti            ; return from ISR
+  dec INDEX         ; decrement LED location (originally used ror, but it screwed up the compare)
+  cpi INDEX,MIN     ; compare the current index with the min index...
+  breq start_ascending
+  reti              ; ...and skip this instruction if they're the same.
+  start_ascending:
+    ldi DIR,ASC     ; reverse direction
+    reti            ; return from ISR
