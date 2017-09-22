@@ -1,8 +1,11 @@
 ; Nick Piscitello
 ; September 2017
 ; Atmel ATMEGA328-PU
-; avr-gcc 7.1.0
+; avr-gcc 7.2.0
 ; fuses: default (l: 0x62, h: 0xD9, e: 0x07)
+
+; This code could use some optimization; the display updating algorithm is kinda
+; janky and doesn't make for a very smooth refresh.
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -87,7 +90,7 @@ main:
   ; enable timer/counter 0 output compare A interrupt, set counter value
   ldi TEMP,0x00 | _BV(OCIE0A)
   sts TIMSK0,TEMP
-  ldi TEMP,0x1F
+  ldi TEMP,0x03
   sts OCR0A,TEMP
 
   sei               ; globally enable interrupts
