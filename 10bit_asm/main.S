@@ -98,6 +98,9 @@ main:
 
 ; infinite loop. In the spirit of minimizing interrupt code, the leds are lit from here
 loop:
+  clr TEMP          ; clean out registers to prevent anything weird from happening
+  clr OUT
+  clr CNT
   mov TEMP,INDEX    ; store a static copy of INDEX in case the timer fires during update
   ldi OUT,0x01      ; load a seed to shift right
   mov CNT,TEMP      ; load the loop counter with the number of times to shift
